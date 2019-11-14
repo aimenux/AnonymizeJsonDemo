@@ -7,12 +7,12 @@ namespace AnonymizeJsonDemo
     public class AnonymizeValueProvider : IValueProvider
     {
         private readonly PropertyInfo _memberInfo;
-        private readonly Func<object, string> _substitutionFunc;
+        private readonly Func<object, string> _anonymizeFunc;
 
-        public AnonymizeValueProvider(PropertyInfo memberInfo, Func<object, string> substitutionFunc)
+        public AnonymizeValueProvider(PropertyInfo memberInfo, Func<object, string> anonymizeFunc)
         {
             _memberInfo = memberInfo;
-            _substitutionFunc = substitutionFunc;
+            _anonymizeFunc = anonymizeFunc;
         }
 
         public void SetValue(object target, object value)
@@ -23,12 +23,7 @@ namespace AnonymizeJsonDemo
         public object GetValue(object target)
         {
             var result = _memberInfo.GetValue(target);
-
-            if (_memberInfo.PropertyType == typeof(string))
-            {
-                result = _substitutionFunc(result);
-            }
-
+            result = _anonymizeFunc(result);
             return result;
         }
     }

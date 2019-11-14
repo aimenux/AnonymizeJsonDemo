@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -9,37 +10,34 @@ namespace AnonymizeJsonDemo
 {
     public class AnonymizeContractResolver : DefaultContractResolver
     {
+        private readonly IDictionary<string, Func<object, string>> _anonymizers;
+
+        public AnonymizeContractResolver()
+        {
+            _anonymizers = new Dictionary<string, Func<object, string>>
+            {
+                [nameof(Employee.Email)] = ApplyHashing,
+                [nameof(Employee.FirstName)] = ApplySubstitution,
+                [nameof(Employee.LastName)] = ApplySubstitution
+            };
+        }
+
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             var property = base.CreateProperty(member, memberSerialization);
-
-            if (member is PropertyInfo propertyInfo && property.DeclaringType.IsClass)
+            var propertyInfo = member as PropertyInfo;
+            if (IsPropertyToAnonymize(propertyInfo))
             {
-                if (IsHashingEnabled(property.PropertyName))
-                {
-                    property.ValueProvider = new AnonymizeValueProvider(propertyInfo, ApplyHashing);
-                    return property;
-                }
-
-                if (IsSubstitutionEnabled(property.PropertyName))
-                {
-                    property.ValueProvider = new AnonymizeValueProvider(propertyInfo, ApplySubstitution);
-                    return property;
-                }
+                var propertyName = property.PropertyName;
+                var anonymizer = _anonymizers[propertyName];
+                property.ValueProvider = new AnonymizeValueProvider(propertyInfo, anonymizer);
             }
-
             return property;
         }
 
-        private bool IsHashingEnabled(string propertyName)
+        private bool IsPropertyToAnonymize(PropertyInfo propertyInfo)
         {
-            return string.Equals(propertyName, nameof(Employee.Email));
-        }
-
-        private bool IsSubstitutionEnabled(string propertyName)
-        {
-            return string.Equals(propertyName, nameof(Employee.FirstName))
-                   || string.Equals(propertyName, nameof(Employee.LastName));
+            return propertyInfo?.PropertyType == typeof(string) && _anonymizers.ContainsKey(propertyInfo.Name);
         }
 
         private static string ApplyHashing(object value)
